@@ -4,9 +4,9 @@ from datetime import datetime
 
 
 class ViewerTracker:
-    def __init__(self, log_dir: str = "logs"):
-        self.log_dir = log_dir
-        os.makedirs(log_dir, exist_ok=True)
+    def __init__(self, base_dir: str = "."):
+        self.log_dir = os.path.join(base_dir, "logs")
+        os.makedirs(self.log_dir, exist_ok=True)
 
     def _csv_path(self, platform: str) -> str:
         date_str = datetime.now().strftime("%Y-%m-%d")
