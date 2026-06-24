@@ -4,15 +4,17 @@ import requests
 class YouTubeClient:
     def __init__(self, api_key: str):
         self.api_key = api_key
+        self._session = requests.Session()
 
     def get_live_stats(self, video_id: str) -> dict | None:
-        resp = requests.get(
+        resp = self._session.get(
             "https://www.googleapis.com/youtube/v3/videos",
             params={
                 "part": "liveStreamingDetails,statistics,snippet",
                 "id": video_id,
                 "key": self.api_key,
             },
+            timeout=15,
         )
         resp.raise_for_status()
         data = resp.json()

@@ -25,5 +25,12 @@ class ViewerTracker:
 
     def print_status(self, platform: str, data: dict):
         viewers = data.get("viewer_count", "N/A")
-        title = data.get("title", "N/A")
-        print(f"[{platform}] Viewers: {viewers} | Title: {title}")
+        if viewers is not None:
+            viewers = f"{int(viewers):,}"
+        title = data.get("title", "N/A")[:60]
+        game = data.get("game_name", "")
+        now = datetime.now().strftime("%H:%M:%S")
+        if game:
+            print(f"  [{now}] {platform.upper():8} | {str(viewers):>8} viewers | {game:20} | {title}")
+        else:
+            print(f"  [{now}] {platform.upper():8} | {str(viewers):>8} viewers | {title}")
