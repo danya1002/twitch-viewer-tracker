@@ -1,19 +1,18 @@
 import requests
 import time
+import json
 
 
 class TwitchClient:
-    def __init__(self, client_id: str, client_secret: str):
+    def __init__(self, client_id, client_secret):
         self.client_id = client_id
         self.client_secret = client_secret
-        self._token = None
-        self._token_expires_at = 0
-        self._session = requests.Session()
+        self.token = None
+        self.token_expires_at = 0
+        self.session = requests.Session()
 
-    def _get_token(self) -> str:
-        if time.time() < self._token_expires_at:
-            return self._token
-        resp = self._session.post(
+    def _refresh_token(self):
+        resp = self.session.post(
             "https://id.twitch.tv/oauth2/token",
             params={
                 "client_id": self.client_id,
@@ -24,31 +23,41 @@ class TwitchClient:
         )
         resp.raise_for_status()
         data = resp.json()
-        self._token = data["access_token"]
-        self._token_expires_at = time.time() + data["expires_in"] - 60
-        return self._token
+        self.token = data["access_token"]
+        self.token_expires_at = time.time() + data["expires_in"] - 60
 
-    def get_stream_info(self, channel: str) -> dict | None:
-        token = self._get_token()
-        resp = self._session.get(
+    def get_stream(self, channel):
+        if time.time() >= self.token_expires_at:
+            self._refresh_token()
+        resp = self.session.get(
             "https://api.twitch.tv/helix/streams",
             headers={
                 "Client-ID": self.client_id,
-                "Authorization": f"Bearer {token}",
+                "Authorization": f"Bearer {self.token}",
             },
             params={"user_login": channel.lower()},
             timeout=15,
         )
+        if resp.status_code == 401:
+            self._refresh_token()
+            resp = self.session.get(
+                "https://api.twitch.tv/helix/streams",
+                headers={
+                    "Client-ID": self.client_id,
+                    "Authorization": f"Bearer {self.token}",
+                },
+                params={"user_login": channel.lower()},
+                timeout=15,
+            )
         resp.raise_for_status()
-        data = resp.json()
-        streams = data.get("data", [])
-        if not streams:
+        data = resp.json().get("data", [])
+        if not data:
             return None
-        stream = streams[0]
+        s = data[0]
         return {
-            "viewer_count": stream["viewer_count"],
-            "title": stream["title"],
-            "game_name": stream.get("game_name", "N/A"),
-            "started_at": stream["started_at"],
+            "viewer_count": s["viewer_count"],
+            "title": s["title"],
+            "game": s.get("game_name", ""),
+            "started_at": s["started_at"],
             "is_live": True,
         }

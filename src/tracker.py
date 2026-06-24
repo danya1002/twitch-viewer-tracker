@@ -3,34 +3,31 @@ import os
 from datetime import datetime
 
 
-class ViewerTracker:
-    def __init__(self, base_dir: str = "."):
+class Tracker:
+    def __init__(self, base_dir):
         self.log_dir = os.path.join(base_dir, "logs")
         os.makedirs(self.log_dir, exist_ok=True)
 
-    def _csv_path(self, platform: str) -> str:
-        date_str = datetime.now().strftime("%Y-%m-%d")
-        return os.path.join(self.log_dir, f"{platform}_{date_str}.csv")
+    def log(self, platform, data):
+        path = os.path.join(self.log_dir, f"{platform}_{datetime.now():%Y-%m-%d}.csv")
+        new = not os.path.isfile(path)
+        row = {"time": datetime.now().isoformat()}
+        for k, v in data.items():
+            if v is not None:
+                row[k] = str(v)
+        with open(path, "a", newline="", encoding="utf-8") as f:
+            w = csv.DictWriter(f, fieldnames=row.keys())
+            if new:
+                w.writeheader()
+            w.writerow(row)
 
-    def log(self, platform: str, data: dict):
-        filepath = self._csv_path(platform)
-        is_new = not os.path.isfile(filepath)
-        timestamp = datetime.now().isoformat()
-        row = {"timestamp": timestamp, **data}
-        with open(filepath, "a", newline="", encoding="utf-8") as f:
-            writer = csv.DictWriter(f, fieldnames=row.keys())
-            if is_new:
-                writer.writeheader()
-            writer.writerow(row)
-
-    def print_status(self, platform: str, data: dict):
-        viewers = data.get("viewer_count", "N/A")
-        if viewers is not None:
-            viewers = f"{int(viewers):,}"
-        title = data.get("title", "N/A")[:60]
-        game = data.get("game_name", "")
+    def show(self, platform, data):
         now = datetime.now().strftime("%H:%M:%S")
-        if game:
-            print(f"  [{now}] {platform.upper():8} | {str(viewers):>8} viewers | {game:20} | {title}")
+        viewers = data.get("viewer_count", 0)
+        if viewers:
+            viewers = f"{viewers:>6,}"
         else:
-            print(f"  [{now}] {platform.upper():8} | {str(viewers):>8} viewers | {title}")
+            viewers = "    --"
+        title = (data.get("title") or "")[:55]
+        game = data.get("game") or data.get("channel") or ""
+        print(f"  {now}  {platform.upper():>7} | {viewers}  | {title}")
